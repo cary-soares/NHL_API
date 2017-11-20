@@ -8,13 +8,17 @@ import json
 import requests
 import pandas as pd
 import numpy as np
+import datetime
 
-searchTeam = 'DET'
+searchTeam = 'OTT'
 
 #// Start by searching for team ID // 
 
-url = 'https://statsapi.web.nhl.com/api/v1/teams'
+api = 'https://statsapi.web.nhl.com/api/v1/'
+apishort = 'https://statsapi.web.nhl.com/'
+teams = 'teams'
 
+url = api+teams
 resp = requests.get(url=url)
 teamData = json.loads(resp.text)
 teamData = teamData['teams'][0:]
@@ -28,15 +32,41 @@ for x in range (0,len(teamData)):
 TeamID = np.flatnonzero(teamIndex['TeamName'] == searchTeam)+1
 TeamID = str(TeamID[0])
 
-#// Search for Team Roster IDs // 
-
-url = url+'/'+TeamID+'/roster'
+## Search for all game IDs
+enddate = str(datetime.datetime.today().strftime('%Y-%m-%d'))
+startdate = 'schedule?startDate=2017-10-01&endDate='
+team = '&teamId='+TeamID
+url = api+startdate+enddate+team
 
 resp = requests.get(url=url)
-rosterData = json.loads(resp.text)
+teamSched = json.loads(resp.text)
+numgames = len(teamSched['dates'])
 
-roster = rosterData['roster']
-rosterIDs = pd.DataFrame(np.nan, range(0,len(roster)), columns=['playerID','playerName','pos'])
+gameIDs = pd.DataFrame(np.nan, range(0,numgames), columns=['gameID','date'])
+
+for x in range(0,numgames):
+    gameIDs['gameID'][x] = teamSched['dates'][x]['games'][0]['gamePk']
+    gameIDs['date'][x] = teamSched['dates'][x]['date']
+
+#// Search for Team Roster IDs // 
+## next step is to grab player IDs from all games
+
+rosterIDs = pd.DataFrame(np.nan, range(0,50), columns=['playerID','playerName','pos'])
+
+for x in range(0,numgames):
+    s = api
+    ID = str(gameIDs['gameID'][x])
+    url = s+'game/'+str(int(gameIDs['gameID'][x]))+'/feed/live'
+    resp = requests.get(url=url)
+    gameData = json.loads(resp.text)
+    
+    for i in range(0,23):
+        rosterIDs['playerID'][i] = gameData[]
+    
+  #### this is where IM at
+  
+    
+    
 
 for x in range (0,len(roster)):
     rosterIDs['playerID'][x] = roster[x]['person']['id']
