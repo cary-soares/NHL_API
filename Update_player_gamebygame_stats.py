@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 """
+Created on Mon Dec 18 21:17:34 2017
+
+@author: Cary
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Sun Nov 19 19:23:52 2017
 
 @author: Cary
 """
+
 import json
 import requests
 import pandas as pd
 import numpy as np
 import datetime
-
 
 team_list = pd.read_csv('teams.csv', header=None)
 for t in range(0,len(team_list)):
@@ -17,9 +24,15 @@ for t in range(0,len(team_list)):
     searchTeam = team_list[0][t]
     TeamID = str(team_list[1][t])
     
+    # Reloading files from csv
+    locate = 'C:\\Users\\Cary\\Desktop\\NHL_API\\'+searchTeam+'_stats.csv'
+    playerStatsFULL = pd.read_csv(locate,sep='\t')
+    playerStatsFULL = playerStatsFULL.drop(playerStatsFULL.columns[0], axis=1)
+    
     #// Start by searching for team ID // 
     
     api = 'https://statsapi.web.nhl.com/api/v1/'
+    apishort = 'https://statsapi.web.nhl.com/'
     
     ## Search for all game IDs
     enddate = str(datetime.datetime.today().strftime('%Y-%m-%d'))
@@ -44,10 +57,10 @@ for t in range(0,len(team_list)):
                     'hits','penaltyMinutes','plusMinus','powerPlayAssists', 'powerPlayGoals','powerPlayTimeOnIce','shortHandedAssists','shortHandedGoals','shortHandedTimeOnIce',
                     'shots','takeaways','timeOnIce'] 
       
-    playerStatsFULL = pd.DataFrame(np.nan, range(0,0), columns = columnNamesP)
+    ## find unique gameID and start from there
+    oldGameIDs = list(set(playerStatsFULL.gameID))
     
-    #for x in range(0,len(gameIDs)):
-    for x in range(0,10):    
+    for x in range(len(oldGameIDs),len(gameIDs)):
         print(x)
     #    rosterIDs = pd.DataFrame(np.nan, range(0,21), columns=['playerID','code'])
     #    playerStats = pd.DataFrame(np.nan, range(0,len(rosterIDs)), columns = columnNamesP)
@@ -64,7 +77,7 @@ for t in range(0,len(team_list)):
             playerStats = pd.DataFrame(np.nan, range(0,len(rosterIDs)), columns = columnNamesP)
             for i in range(0,len(rosterIDs)):
                 playerStats[columnNamesP[0]][i] = ID 
-                playerStats[columnNamesP[0]][i] = x            
+                playerStats[columnNamesP[0]][i] = x 
                 playerStats[columnNamesP[1]][i] = rosterIDs[i]       
                 for z in range(3,len(columnNamesP)):
                     if gameData['liveData']['boxscore']['teams']['away']['players']['ID'+str(rosterIDs[i])]['position']['code'] == 'N/A':
@@ -77,8 +90,8 @@ for t in range(0,len(team_list)):
             rosterIDs = gameData['liveData']['boxscore']['teams']['home']['skaters']
             playerStats = pd.DataFrame(np.nan, range(0,len(rosterIDs)), columns = columnNamesP)
             for i in range(0,len(rosterIDs)):
-                playerStats[columnNamesP[0]][i] = ID 
-                playerStats[columnNamesP[0]][i] = x  
+                playerStats[columnNamesP[0]][i] = ID
+                playerStats[columnNamesP[0]][i] = x            
                 playerStats[columnNamesP[1]][i] = rosterIDs[i]           
                 for z in range(3,len(columnNamesP)):
                     if gameData['liveData']['boxscore']['teams']['home']['players']['ID'+str(rosterIDs[i])]['position']['code'] == 'N/A':
@@ -107,10 +120,12 @@ for t in range(0,len(team_list)):
         roster['playerName'][i] = playerName
               
     roster.to_csv(searchTeam+'_roster.csv', sep='\t', encoding='utf-8')
-    
-    #for i in range(0,len(allPlayerIDs)):
-    #    playerStatsFULL = playerStatsFULL.replace(int(roster['playerID'][i]),roster['playerName'][i])
-    #    
-    
     playerStatsFULL.to_csv(searchTeam+'_stats.csv', sep='\t', encoding='utf-8')
+    
+    
+#    for i in range(0,len(allPlayerIDs)):
+#        playerStatsFULL = playerStatsFULL.replace(int(roster['playerID'][i]),roster['playerName'][i])
+        
 
+    
+    
