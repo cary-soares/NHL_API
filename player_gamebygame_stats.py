@@ -10,10 +10,15 @@ import pandas as pd
 import numpy as np
 import datetime
 
+# path for file export
+path = 'C:\\Users\\Cary\\Desktop\\NHL_API\\Data_test\\'
 
+#load team_list
 team_list = pd.read_csv('teams.csv', header=None)
+
+#loop through teams
 for t in range(0,len(team_list)):
-    
+#for t in range(0,1):    
     searchTeam = team_list[0][t]
     TeamID = str(team_list[1][t])
     
@@ -31,23 +36,29 @@ for t in range(0,len(team_list)):
     teamSched = json.loads(resp.text)
     numgames = len(teamSched['dates'])
     
-    gameIDs = pd.DataFrame(np.nan, range(0,numgames), columns=['gameID','date'])
+    gameIDs = pd.DataFrame(np.nan, range(0,numgames), columns=['gameID','date','oppTeamID','home'])
     
     for x in range(0,numgames):
         gameIDs['gameID'][x] = teamSched['dates'][x]['games'][0]['gamePk']
         gameIDs['date'][x] = teamSched['dates'][x]['date']
-    
+        if teamSched['dates'][x]['games'][0]['teams']['away']['team']['id'] == int(TeamID):
+            gameIDs['oppTeamID'][x] = teamSched['dates'][x]['games'][0]['teams']['home']['team']['id']
+            gameIDs['home'][x] = 0
+        else:
+            gameIDs['oppTeamID'][x] = teamSched['dates'][x]['games'][0]['teams']['away']['team']['id'] 
+            gameIDs['home'][x] = 1
+                   
     #// Search for Team Roster IDs // 
     ## next step is to grab player IDs from all games
     
     columnNamesP = ['gameID','gameNumb','rosterID','assists','blocked','evenTimeOnIce','faceOffWins','faceoffTaken', 'giveaways','goals',             
                     'hits','penaltyMinutes','plusMinus','powerPlayAssists', 'powerPlayGoals','powerPlayTimeOnIce','shortHandedAssists','shortHandedGoals','shortHandedTimeOnIce',
-                    'shots','takeaways','timeOnIce'] 
-      
+                    'shots','takeaways','timeOnIce','points'] 
+    
     playerStatsFULL = pd.DataFrame(np.nan, range(0,0), columns = columnNamesP)
     
     #for x in range(0,len(gameIDs)):
-    for x in range(0,10):    
+    for x in range(0,2):    
         print(x)
     #    rosterIDs = pd.DataFrame(np.nan, range(0,21), columns=['playerID','code'])
     #    playerStats = pd.DataFrame(np.nan, range(0,len(rosterIDs)), columns = columnNamesP)
@@ -64,35 +75,34 @@ for t in range(0,len(team_list)):
             playerStats = pd.DataFrame(np.nan, range(0,len(rosterIDs)), columns = columnNamesP)
             for i in range(0,len(rosterIDs)):
                 playerStats[columnNamesP[0]][i] = ID 
-                playerStats[columnNamesP[0]][i] = x            
-                playerStats[columnNamesP[1]][i] = rosterIDs[i]       
-                for z in range(3,len(columnNamesP)):
+                playerStats[columnNamesP[1]][i] = x+1            
+                playerStats[columnNamesP[2]][i] = int(rosterIDs[i])  
+                for z in range(3,len(columnNamesP)-1):
                     if gameData['liveData']['boxscore']['teams']['away']['players']['ID'+str(rosterIDs[i])]['position']['code'] == 'N/A':
                         continue 
                     else:
                         playerStats[columnNamesP[z]][i] = gameData['liveData']['boxscore']['teams']['away']['players']['ID'+str(rosterIDs[i])]['stats']['skaterStats'][columnNamesP[z]]
-        
+                playerStats[columnNamesP[z+1]][i] =  playerStats['goals'][i]+playerStats['assists'][i]
+                
         else:    
             skaters = len(gameData['liveData']['boxscore']['teams']['home']['skaters'])-1
             rosterIDs = gameData['liveData']['boxscore']['teams']['home']['skaters']
             playerStats = pd.DataFrame(np.nan, range(0,len(rosterIDs)), columns = columnNamesP)
             for i in range(0,len(rosterIDs)):
                 playerStats[columnNamesP[0]][i] = ID 
-                playerStats[columnNamesP[0]][i] = x  
-                playerStats[columnNamesP[1]][i] = rosterIDs[i]           
-                for z in range(3,len(columnNamesP)):
+                playerStats[columnNamesP[1]][i] = x+1  
+                playerStats[columnNamesP[2]][i] = int(rosterIDs[i])           
+                for z in range(3,len(columnNamesP)-1):
                     if gameData['liveData']['boxscore']['teams']['home']['players']['ID'+str(rosterIDs[i])]['position']['code'] == 'N/A':
                         continue 
                     else:
                         playerStats[columnNamesP[z]][i] = gameData['liveData']['boxscore']['teams']['home']['players']['ID'+str(rosterIDs[i])]['stats']['skaterStats'][columnNamesP[z]]
-            
+                playerStats[columnNamesP[z+1]][i] =  playerStats['goals'][i]+playerStats['assists'][i]
            
         playerStatsFULL = playerStatsFULL.append(playerStats)
-        del rosterIDs
-        del playerStats
     
     # to remove instances where player was a healthy scratch, i dropped all rows that contain empty values (nan)     
-    playerStatsFULL = playerStatsFULL.dropna()
+    playerStatsFULL = playerStatsFULL.dropna(subset = ['timeOnIce'])
     
     # update the rosterIDs with player names
     allPlayerIDs = list(set(playerStatsFULL.rosterID))
@@ -103,14 +113,17 @@ for t in range(0,len(team_list)):
         resp = requests.get(url=url)
         playerData = json.loads(resp.text)
         playerName = playerData['people'][0]['firstName']+playerData['people'][0]['lastName'] 
-        roster['playerID'][i] = allPlayerIDs[i]
+        roster['playerID'][i] = int(allPlayerIDs[i])
         roster['playerName'][i] = playerName
-              
-    roster.to_csv(searchTeam+'_roster.csv', sep='\t', encoding='utf-8')
     
-    #for i in range(0,len(allPlayerIDs)):
-    #    playerStatsFULL = playerStatsFULL.replace(int(roster['playerID'][i]),roster['playerName'][i])
-    #    
     
-    playerStatsFULL.to_csv(searchTeam+'_stats.csv', sep='\t', encoding='utf-8')
+    filename = searchTeam+'_roster.csv'        
+    roster.to_csv(path+filename, sep='\t',encoding='utf-8')
+    
+    filename = searchTeam+'_stats.csv' 
+    playerStatsFULL.to_csv(path+filename, sep='\t', encoding='utf-8')
+    
+    filename = searchTeam+'_gamelist.csv'
+    gameIDs.to_csv(path+filename,sep='\t', encoding='utf-8')
 
+ 

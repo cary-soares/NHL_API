@@ -97,3 +97,38 @@ ENV/
 
 # mypy
 .mypy_cache/
+game_data.py
+game_data.py
+OLD scripts/NHL_API.py
+NHL_API.py
+game_data.py
+Data/WSH_stats.csv
+Data/WSH_roster.csv
+Data/WPG_stats.csv
+Data/WPG_roster.csv
+Data/VGK_stats.csv
+Data/VGK_roster.csv
+Data/VAN_roster.csv
+Data/VAN_stats.csv
+Data/TOR_stats.csv
+Data/TOR_roster.csv
+Data/teams.csv
+Data/TBL_stats.csv
+Data/TBL_roster.csv
+Data/STL_roster.csv
+Data/STL_stats.csv
+Data/SJS_stats.csv
+Data/SJS_roster.csv
+Data/PIT_stats.csv
+Data/PIT_roster.csv
+Data/PHI_stats.csv
+Data/PHI_roster.csv
+Data/OTT_stats.csv
+Data/OTT_roster.csv
+Data/NYR_stats.csv
+Data/NYR_roster.csv
+Data/NYI_stats.csv
+Data/NYI_roster.csv
+Data/NSH_stats.csv
+*.csv
+Cosolidate_player_gamebygame_stats.py
