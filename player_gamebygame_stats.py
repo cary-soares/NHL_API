@@ -57,12 +57,9 @@ for t in range(0,len(team_list)):
     
     playerStatsFULL = pd.DataFrame(np.nan, range(0,0), columns = columnNamesP)
     
-    #for x in range(0,len(gameIDs)):
-    for x in range(0,2):    
+    for x in range(0,len(gameIDs)):
+#    for x in range(0,2):    
         print(x)
-    #    rosterIDs = pd.DataFrame(np.nan, range(0,21), columns=['playerID','code'])
-    #    playerStats = pd.DataFrame(np.nan, range(0,len(rosterIDs)), columns = columnNamesP)
-       
         s = api
         ID = str(gameIDs['gameID'][x])
         url = s+'game/'+str(int(gameIDs['gameID'][x]))+'/feed/live'

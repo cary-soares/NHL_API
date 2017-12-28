@@ -19,21 +19,22 @@ import numpy as np
 import datetime
 
 
-
+# path for file export
 path = 'C:\\Users\\Cary\\Desktop\\NHL_API\\Data_test\\'
 
+#load team_list
 team_list = pd.read_csv('teams.csv', header=None)
+
+#loop through teams
 for t in range(0,len(team_list)):
 #for t in range(0,1):    
     searchTeam = team_list[0][t]
     TeamID = str(team_list[1][t])
     
     # Reloading files from csv
-    locate = 'C:\\Users\\Cary\\Desktop\\NHL_API\\'+searchTeam+'_stats.csv'
+    locate = 'C:\\Users\\Cary\\Desktop\\NHL_API\\data_test\\'+searchTeam+'_stats.csv'
     playerStatsFULL = pd.read_csv(locate,sep='\t')
     playerStatsFULL = playerStatsFULL.drop(playerStatsFULL.columns[0], axis=1)
-    
-    #// Start by searching for team ID // 
     
     api = 'https://statsapi.web.nhl.com/api/v1/'
     apishort = 'https://statsapi.web.nhl.com/'
@@ -128,11 +129,14 @@ for t in range(0,len(team_list)):
         roster['playerID'][i] = int(allPlayerIDs[i])
         roster['playerName'][i] = playerName
     
-    filename = searchTeam+'_roster.csv'       
-    roster.to_csv(filename, sep='\t', encoding='utf-8')
-    filename = searchTeam+'_stats.csv'
-    playerStatsFULL.to_csv(filename, sep='\t', encoding='utf-8')
+    filename = searchTeam+'_roster.csv'        
+    roster.to_csv(path+filename, sep='\t',encoding='utf-8')
     
+    filename = searchTeam+'_stats.csv' 
+    playerStatsFULL.to_csv(path+filename, sep='\t', encoding='utf-8')
+    
+    filename = searchTeam+'_gamelist.csv'
+    gameIDs.to_csv(path+filename,sep='\t', encoding='utf-8')
     
 #    for i in range(0,len(allPlayerIDs)):
 #        playerStatsFULL = playerStatsFULL.replace(int(roster['playerID'][i]),roster['playerName'][i])
