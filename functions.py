@@ -4,7 +4,6 @@ import requests
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta, datetime
-import matplotlib.pyplot as plt
 import functools
 
 
