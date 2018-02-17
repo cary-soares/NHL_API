@@ -9,6 +9,8 @@ import functools
 
 
 def date_range(start_date, end_date):
+    
+    """ Returs a list of all dates between Start and End in YYYY-MM-DD string format"""
 
     start_date = datetime.strptime(start_date, '%Y-%m-%d')
     end_date = datetime.strptime(end_date, '%Y-%m-%d')
@@ -20,8 +22,11 @@ def date_range(start_date, end_date):
 
 def get_adv_stats(start_date, end_date):
     
-    dates = date_range(start_date,end_date)   
-    
+    """ This function will pull 94 different player metrics for each player and from each game within the date range"""
+    """Since the official stats API ('statsapi.web.nhl.com/api/v1/') does not contain advanced player stats, a different url is used"""
+      
+  #establishing the column names for the DataFrames that will eventually consolidate to a single 'playerStats' dataframe
+  
     colNames1 = ['playerId','gameId','playerName','playerPositionCode','gameDate','teamAbbrev','opponentTeamAbbrev','goals','assists','points','shots','penaltyMinutes','plusMinus',
                  'shootingPctg','gameWinningGoals','otGoals','ppGoals','ppPoints','shGoals','shPoints','shiftsPerGame','timeOnIcePerGame']
     
@@ -44,17 +49,21 @@ def get_adv_stats(start_date, end_date):
                      'missedShotsHitCrossbar','missedShotsHitPost','missedShotsOverNet','missedShotsWideOfNet','shotsBackhand','shotsDeflected','shotsSlap',
                      'shotsSnap','shotsTipped','shotsWraparound','shotsWrist']
     
-    
-    
     col_list = colNames1 + colNames2[1:] + colNames3[1:] + colNames4[1:] + colNames5[1:] + colNames6[1:] 
     playerStats = pd.DataFrame(np.nan, range(0,0), columns = col_list)
+    
+    
+## loop to gather player metrics from each day and consolidate into a single dataframe
+
+    dates = date_range(start_date,end_date) 
     
     for day in dates:
         start = day
         end = day   
         
         print(day)    
-    #Basic
+        
+    #Basic Stats
         url = 'http://www.nhl.com/stats/rest/skaters?isAggregate=false&reportType=basic&isGame=true&reportName=skatersummary&cayenneExp=gameDate%3E=%22{}%22%20and%20gameDate%3C=%22{}%2023:59:59%22%20and%20gameTypeId=2'.format(start,end)
         resp = requests.get(url=url)
         basicStats = json.loads(resp.text)
@@ -67,7 +76,7 @@ def get_adv_stats(start_date, end_date):
             for z in range(0,len(colNames1)):
                  playerStats1[colNames1[z]][i] = basicStats['data'][i][colNames1[z]]
                  
-    #SkaterScoring
+    #SkaterScoring Stats
         url = 'http://www.nhl.com/stats/rest/skaters?isAggregate=false&reportType=core&isGame=false&reportName=skaterscoring&cayenneExp=gameDate%3E=%22{}%22%20and%20gameDate%3C=%22{}%2023:59:59%22%20and%20gameTypeId=2'.format(start,end)
         resp = requests.get(url=url)
         skaterScoring = json.loads(resp.text)
@@ -78,7 +87,7 @@ def get_adv_stats(start_date, end_date):
             for z in range(0,len(colNames2)):
                  playerStats2[colNames2[z]][i] = skaterScoring['data'][i][colNames2[z]]
     
-    #SkaterShooting
+    #SkaterShooting Stats
         url = 'http://www.nhl.com/stats/rest/skaters?isAggregate=false&reportType=shooting&isGame=false&reportName=skatersummaryshooting&cayenneExp=gameDate%3E=%22{}%22%20and%20gameDate%3C=%22{}%2023:59:59%22%20and%20gameTypeId=2'.format(start,end)
         resp = requests.get(url=url)
         skaterShooting = json.loads(resp.text)
@@ -88,7 +97,7 @@ def get_adv_stats(start_date, end_date):
             for z in range(0,len(colNames3)):
                 playerStats3[colNames3[z]][i] = skaterShooting['data'][i][colNames3[z]]
         
-    #SkaterPercentages
+    #SkaterPercentage Stats
         url = 'http://www.nhl.com/stats/rest/skaters?isAggregate=false&reportType=shooting&isGame=false&reportName=skaterpercentages&cayenneExp=gameDate%3E=%22{}%22%20and%20gameDate%3C=%22{}%2023:59:59%22%20and%20gameTypeId=2'.format(start,end)
         resp = requests.get(url=url)
         skaterPercentages = json.loads(resp.text)
@@ -98,7 +107,7 @@ def get_adv_stats(start_date, end_date):
             for z in range(0,len(colNames4)):
                  playerStats4[colNames4[z]][i] = skaterPercentages['data'][i][colNames4[z]]
        
-    #Faceoffs
+    #Faceoff Stats
         url = 'http://www.nhl.com/stats/rest/skaters?isAggregate=false&reportType=core&isGame=false&reportName=faceoffsbyzone&cayenneExp=gameDate%3E=%22{}%22%20and%20gameDate%3C=%22{}%2023:59:59%22%20and%20gameTypeId=2'.format(start,end)
         resp = requests.get(url=url)
         faceoffs = json.loads(resp.text)
@@ -109,7 +118,7 @@ def get_adv_stats(start_date, end_date):
             for z in range(0,len(colNames5)):
                  playerStats5[colNames5[z]][i] = faceoffs['data'][i][colNames5[z]]
         
-    #shotType
+    #shotType Stats
         url = 'http://www.nhl.com/stats/rest/skaters?isAggregate=false&reportType=core&isGame=false&reportName=shottype&cayenneExp=gameDate%3E=%22{}%22%20and%20gameDate%3C=%22{}%2023:59:59%22%20and%20gameTypeId=2'.format(start,end)
         resp = requests.get(url=url)
         shottype = json.loads(resp.text)
@@ -122,13 +131,13 @@ def get_adv_stats(start_date, end_date):
         
     
       
-        ## CONSOLIDATING
+    ## CONSOLIDATING dfs 
         dfs = [playerStats1, playerStats2, playerStats3, playerStats4, playerStats5, playerStats6]
         playerStatsCombine = functools.reduce(lambda left,right: pd.merge(left,right,on='playerId'), dfs)
     
         playerStats = playerStats.append(playerStatsCombine)
     
-    ## NEED TO Rearrage column names and also go through it to filter what is actually needed
+    ## Rearrage columns for a more simple navigation
     playerStats = playerStats[col_list]
     return(playerStats)
     
