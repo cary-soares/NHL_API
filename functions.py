@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from datetime import date, timedelta, datetime
 import functools
+import math
 
 
 def date_range(start_date, end_date):
@@ -137,7 +138,15 @@ def get_adv_stats(start_date, end_date):
         playerStats = playerStats.append(playerStatsCombine)
     
     ## Rearrage columns for a more simple navigation
-    playerStats = playerStats[col_list]
+    playerStats = playerStats[col_list].reset_index(drop=True)
+    
+    #convert column types for export to mySQL
+    convert_times_drop(playerStats,'gameDate')
+    convert_times_S_DT(playerStats, 'timeOnIcePerGame')
+    playerStats['playerId'] = playerStats['playerId'].astype(int).astype(str)
+    playerStats['gameId'] = playerStats['gameId'].astype(int).astype(str)
+    
+    
     return(playerStats)
     
     
@@ -260,12 +269,53 @@ def convert_times(df,col_name):
     """converts a time column from a dataframe to format HH:MM:SS"""
     
     for i in range(0,len(df)):
-        if len(df[col_name][i]) == 4:
+        if (df[col_name][i] == 4):
             df[col_name][i] = '00:0' + df[col_name][i]
         else:
             df[col_name][i] = '00:' + df[col_name][i]
             
+
+def convert_times_S_DT(df,col_name):                
+    """converts a time column from a dataframe to format HH:MM:SS"""
+    
+    for i in range(0,len(df)):
+        time_format = 'HH:MM:SS'
+        time = df[col_name][i]
+        
+        if time > 3600: 
+            hours = str(math.floor(time/3600))
+            minutes = str(round((time%3600)/60))
+            seconds = str(round((time%3600)%60))
+        else:
+            hours = '00'
+            minutes = str(math.floor(time/60))
+            seconds = str(round(int(time%60)))  
+        
+        if hours == '00':
+            time_format = time_format.replace('HH', hours)
+        else:
+            time_format = time_format.replace('HH', '0'+str(hours))
+        
+        if len(minutes) == 2:
+            time_format = time_format.replace('MM', str(minutes))
+        else:
+            time_format = time_format.replace('MM', '0'+str(minutes))
+        
+        if len(seconds) == 2:
+            time_format = time_format.replace('SS', str(seconds))
+        else:
+            time_format = time_format.replace('SS', '0'+str(seconds))
+        
+        df[col_name][i]  = time_format 
             
+def convert_times_drop(df,col_name):                
+    """converts a time column from a dataframe to format HH:MM:SS"""
+    
+    for i in range(0,len(df)):
+        time = df[col_name][i]
+        time = time[0:10]
+        df[col_name][i]  = time
+
 def convert_IDs(df,col_name):
    
      """converts a column of IDs from numeric to string"""
@@ -339,73 +389,97 @@ def get_player_GBG_data_yest():
 def get_event_data(gameID):
     
     url = 'https://statsapi.web.nhl.com/api/v1/game/{}/feed/live'.format(gameID)
-    columns = ['gameID','teamID','period','time','event_type','penalty_type','coor_x','coor_y','player','opponent']
+    columns = ['gameID','teamID','period','time','eventType','secondaryType','coor_x','coor_y','player','opponent']
     event_data = pd.DataFrame(np.nan, range(0,0), columns)
-    missing_data = pd.DataFrame(np.nan, range(0,0), columns=['gameID'])
+    missing_data = pd.DataFrame(np.nan, range(0,1), columns=['gameID'])
     missing_games = 0
     
     resp = requests.get(url=url)
     gameData = json.loads(resp.text)   
     
-    event_total = len(gameData['liveData']['plays']['allPlays'])
-       
-    if event_total < 1:
-        missing_data['gameID'][missing_games] = int(gameData['gameData']['game']['pk'])
-        missing_games = missing_games+1
-    else:
-        per_1_plays = list(gameData['liveData']['plays']['playsByPeriod'][0]['plays'])
-        per_2_plays = list(gameData['liveData']['plays']['playsByPeriod'][1]['plays'])
-        per_3_plays = list(gameData['liveData']['plays']['playsByPeriod'][2]['plays'])
-       
+    try:
+        event_total = len(gameData['liveData']['plays']['allPlays'])
+        
+        if event_total < 1:
+            missing_data['gameID'][missing_games] = int(gameID)
+            missing_games = missing_games+1
+        else:
+            per_1_plays = list(gameData['liveData']['plays']['playsByPeriod'][0]['plays'])
+            per_2_plays = list(gameData['liveData']['plays']['playsByPeriod'][1]['plays'])
+            per_3_plays = list(gameData['liveData']['plays']['playsByPeriod'][2]['plays'])
+           
+            home_team = gameData['liveData']['boxscore']['teams']['home']['team']['abbreviation']
+            away_team = gameData['liveData']['boxscore']['teams']['away']['team']['abbreviation']
+            home_list = gameData['liveData']['boxscore']['teams']['home']['skaters']
+        
+            if len(gameData['liveData']['plays']['playsByPeriod']) > 3:
+                   per_4_plays = list(gameData['liveData']['plays']['playsByPeriod'][3]['plays'])
+                
+            for i in range(0,event_total):
+                if len(gameData['liveData']['plays']['allPlays'][i]) == 5: 
+                    event = pd.DataFrame(np.nan, range(0,1), columns=['gameID','teamID','period','time','eventType','secondaryType','coor_x','coor_y','player', 'opponent'])
+                    event['gameID'] = str(int(gameData['gameData']['game']['pk']))
+                    event['teamID'] = str(int(gameData['liveData']['plays']['allPlays'][i]['team']['id']))
+                    if i in per_1_plays:
+                        event['period'] = str(1)
+                    elif i in per_2_plays:
+                        event['period'] = str(2)
+                    elif i in per_3_plays:
+                        event['period'] = str(3)
+                    elif i in per_4_plays:
+                        event['period'] = str(4)
+                    else:
+                        event['period'] = str(5)
+                
+                    event['time'] = '00:'+ gameData['liveData']['plays']['allPlays'][i]['about']['periodTime']
+                    event['eventType'] = gameData['liveData']['plays']['allPlays'][i]['result']['eventTypeId']
+                    
+                    if (len(gameData['liveData']['plays']['allPlays'][i]['result']) == 5) | (event['eventType'][0] == 'GOAL'):
+                        event['secondaryType'] = gameData['liveData']['plays']['allPlays'][i]['result']['secondaryType']
+                    else:
+                        event['secondaryType'] = np.nan
+                             
+                    if event['eventType'][0] == 'PENALTY':
+                        event['secondaryType'] = gameData['liveData']['plays']['allPlays'][i]['result']['penaltySeverity']
+                    
+                    if len(gameData['liveData']['plays']['allPlays'][i]['coordinates']) < 2:
+                         event['coor_x'] = np.nan
+                         event['coor_y'] = np.nan
+                    else: 
+                        event['coor_x'] = gameData['liveData']['plays']['allPlays'][i]['coordinates']['x']
+                        event['coor_y'] = gameData['liveData']['plays']['allPlays'][i]['coordinates']['y']
+                    
+                    event['player'] = int(gameData['liveData']['plays']['allPlays'][i]['players'][0]['player']['id'])
+                   
+                    if len(gameData['liveData']['plays']['allPlays'][i]['players']) > 1:
+                        event['opponent'] = int(gameData['liveData']['plays']['allPlays'][i]['players'][1]['player']['id'])
+                    
+                    event_data = event_data.append(event)
+            
+            event_data['playerTeam'] = event_data['player'].isin(home_list)
+            team = {True:home_team, False:away_team}
+            event_data['playerTeam'] = event_data['playerTeam'].map(team) 
+            
+            event_data['opponentTeam'] = event_data['opponent'].isin(home_list)
+            event_data['opponentTeam'] = event_data['opponentTeam'].map(team) 
+            event_data.ix[event_data['opponent'].isnull(), 'opponentTeam'] = np.nan
+            
+            event_data['player'].astype(str)
+            event_data['opponent'].astype(str)              
+            
+            event_data = event_data[['gameID','teamID','period','time','eventType','secondaryType','coor_x','coor_y','player','opponent','playerTeam','opponentTeam']]
+            event_data = event_data.reset_index(drop=True)
     
-    if len(gameData['liveData']['plays']['playsByPeriod']) > 3:
-           per_4_plays = list(gameData['liveData']['plays']['playsByPeriod'][3]['plays'])
-        
-    for i in range(0,event_total):
-        if len(gameData['liveData']['plays']['allPlays'][i]) == 5: 
-            event = pd.DataFrame(np.nan, range(0,1), columns=['gameID','teamID','period','time','event_type','penalty_type','coor_x','coor_y','player', 'opponent'])
-            event['gameID'] = int(gameData['gameData']['game']['pk'])
-            event['teamID'] = int(gameData['liveData']['plays']['allPlays'][i]['team']['id'])
-            if i in per_1_plays:
-                event['period'] = 1
-            elif i in per_2_plays:
-                event['period'] = 2
-            elif i in per_3_plays:
-                event['period'] = 3
-            elif i in per_4_plays:
-                event['period'] = 4
-            else:
-                event['period'] = 5
-        
-            event['time'] = gameData['liveData']['plays']['allPlays'][i]['about']['periodTime']
-            event['event_type'] = gameData['liveData']['plays']['allPlays'][i]['result']['eventTypeId']
-            if event['event_type'][0] == 'PENALTY':
-                event['penalty_type'] = gameData['liveData']['plays']['allPlays'][i]['result']['penaltySeverity']
-            else:
-                event['penalty_type'] = np.nan
+    except:
+        missing_data['gameID'][missing_games] = int(gameID)
+        missing_games = missing_games+1
             
-            if len(gameData['liveData']['plays']['allPlays'][i]['coordinates']) == 0:
-                 event['coor_x'] = np.nan
-                 event['coor_y'] = np.nan
-            else: 
-                event['coor_x'] = gameData['liveData']['plays']['allPlays'][i]['coordinates']['x']
-                event['coor_y'] = gameData['liveData']['plays']['allPlays'][i]['coordinates']['y']
-            
-            event['player'] = gameData['liveData']['plays']['allPlays'][i]['players'][0]['player']['id']
-            if len(gameData['liveData']['plays']['allPlays'][i]['players']) > 1:
-                event['opponent'] = gameData['liveData']['plays']['allPlays'][i]['players'][1]['player']['id']
-            
-            event_data = event_data.append(event)
-            
-    event_data = event_data[['gameID','teamID','period','time','event_type','penalty_type','coor_x','coor_y','player', 'opponent']]
-    event_data = event_data.reset_index(drop=True)
-         
-    return(event_data,missing_data)
+    return(event_data,list(missing_data['gameID']))
 
-
+## need to refine yest 
 def get_event_data_yest():
     gameIDs = get_games_yest()
-    columns = ['gameID','teamID','period','time','event_type','penalty_type','coor_x','coor_y','player','opponent']
+    columns = ['gameID','teamID','period','time','eventType','secondaryType','coor_x','coor_y','player','opponent','playerTeam','opponentTeam']
     event_data = pd.DataFrame(np.nan, range(0,0), columns)
     missing_data = pd.DataFrame(np.nan, range(0,0), columns=['gameID'])
         
@@ -429,7 +503,7 @@ def get_event_data_daterange(start_date,end_date):
     it in a single dataframe"""
     
     gameIDs = get_games(start_date,end_date)
-    columns = ['gameID','teamID','period','time','event_type','penalty_type','coor_x','coor_y','player','opponent']
+    columns = ['gameID','teamID','period','time','eventType','secondaryType','coor_x','coor_y','player','opponent','playerTeam','opponentTeam']
     event_data = pd.DataFrame(np.nan, range(0,0), columns)
     missing_data = pd.DataFrame(np.nan, range(0,0), columns=['gameID'])
         
@@ -446,8 +520,52 @@ def get_event_data_daterange(start_date,end_date):
     
     return(event_data,missing_data)
 
-            
-        
+def get_player_info(playerId):
 
+    cols = ['id','fullName','birthDate','birthCity','birthCountry','shootsCatches','position','teamId','team','birthStateProvince']
+    
+    url = 'https://statsapi.web.nhl.com/api/v1/people/{}'.format(str(playerId))
+    resp = requests.get(url=url)
+    playerInfoJSON = json.loads(resp.text)
+    
+    playerInfo = pd.DataFrame(np.nan, range(0,1), columns = cols)
+    playerInfo['id'] = playerId
+    
+    for i in range(1,len(cols)-4):
+        playerInfo[cols[i]] = playerInfoJSON['people'][0][cols[i]]
+    
+    playerInfo['position'] = playerInfoJSON['people'][0]['primaryPosition']['code']
+    if playerInfoJSON['people'][0]['active'] is False:
+        playerInfo['teamId'] = np.nan   
+        playerInfo['team'] = np.nan
+    else:
+        playerInfo['teamId'] = playerInfoJSON['people'][0]['currentTeam']['id']   
+        playerInfo['team'] = playerInfoJSON['people'][0]['currentTeam']['name']
+    
+    NA = ['USA','CAN']
+    
+    if playerInfo.birthCountry[0] in NA:
+        playerInfo['birthStateProvince'] = playerInfoJSON['people'][0]['birthStateProvince']
+        
+    return(playerInfo)
+
+#Creat player df for Database
+
+colMaster = ['id','fullName','birthDate','birthCity','birthStateProvince','birthCountry','shootsCatches','position','teamId','team']
+playerInfoFULL = pd.DataFrame(np.nan, range(0,0), columns = colMaster)
+
+for player in players:
+    print(player)
+    data = get_player_info(player)
+    playerInfoFULL = playerInfoFULL.append(data)
+    
+playerInfoFULL = playerInfoFULL[colMaster]
+playerInfoFULL['teamId'] = playerInfoFULL['teamId'].fillna(0).astype(str) 
+    
+    
+    
+    
 ### disables a copy warning from appearing in the console
 pd.options.mode.chained_assignment = None  # default='warn'
+
+
